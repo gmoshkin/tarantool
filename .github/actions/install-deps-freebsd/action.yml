@@ -1,0 +1,17 @@
+name: Install Deps FreeBSD
+
+description: Install build and test dependencies on FreeBSD systems
+
+runs:
+  using: composite
+  steps:
+    - run: |
+        pkg install -y \
+          cmake \
+          gmake \
+          icu \
+          libiconv \
+          python38 \
+          py38-pip
+        which python3 || ln -s /usr/local/bin/python3.8 /usr/local/bin/python3
+      shell: bash
