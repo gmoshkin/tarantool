@@ -104,6 +104,11 @@ static struct fiber *on_shutdown_fiber = NULL;
 /** A flag restricting repeated execution of tarantool_exit(). */
 static bool is_shutting_down = false;
 static int exit_code = 0;
+/**
+ * A flag preventing main fiber from exiting until on_shutdown triggers have
+ * finished.
+ */
+static bool on_shutdown_is_running = false;
 
 double
 tarantool_uptime(void)
@@ -139,9 +144,11 @@ static int
 on_shutdown_f(va_list ap)
 {
 	(void) ap;
+	on_shutdown_is_running = true;
 	trigger_fiber_run(&box_on_shutdown_trigger_list, NULL,
 			  on_shutdown_trigger_timeout);
 	ev_break(loop(), EVBREAK_ALL);
+	on_shutdown_is_running = false;
 	return 0;
 }
 
@@ -823,6 +830,10 @@ main(int argc, char **argv)
 	 * any signals.
 	 */
 	tarantool_exit(exit_code);
+	if (on_shutdown_is_running) {
+		/* on_shutdown_fiber will call ev_break(ALL) after it ends */
+		ev_run(loop(), 0);
+	}
 	/* freeing resources */
 	tarantool_free();
 	return exit_code;
